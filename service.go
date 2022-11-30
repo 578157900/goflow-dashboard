@@ -2,15 +2,22 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"strings"
+	"sync"
+
 	"github.com/rs/xid"
 	"github.com/s8sg/goflow"
 	"github.com/s8sg/goflow-dashboard/lib"
+	"github.com/s8sg/goflow/eventhandler"
 	redis "gopkg.in/redis.v5"
-	"os"
-	"strings"
 )
 
-var rdb *redis.Client
+var (
+	rdb  *redis.Client
+	once sync.Once
+)
 
 // listGoFLows get list of go-flows
 func listGoFLows() ([]*Flow, error) {
@@ -55,7 +62,6 @@ func listFlowRequests(flow string) (map[string]string, error) {
 
 // buildFlowDesc get a flow details
 func buildFlowDesc(functions []*Flow, flowName string) (*FlowDesc, error) {
-
 	var functionObj *Flow
 	for _, functionObj = range functions {
 		if functionObj.Name == flowName {
@@ -103,7 +109,11 @@ func listRequestTraces(requestId string, requestTraceId string) (*RequestTrace, 
 // getRequestState request the flow for the request status
 func getRequestState(flow, requestId string) (string, error) {
 	rdb = getRDB()
-	return "", nil
+	wf, _, err := eventhandler.GetWorkflow(rdb, requestId)
+	if err != nil {
+		return "", err
+	}
+	return wf.State, nil
 }
 
 // executeFlow execute a flow
@@ -168,20 +178,21 @@ func stopRequest(flow string, requestID string) error {
 }
 
 func getRDB() *redis.Client {
-	addr := getRedisAddr()
-	if rdb == nil {
-		rdb = redis.NewClient(&redis.Options{
-			Addr: addr,
-			DB:   0,
-		})
-	}
+	once.Do(func() {
+		addr := getRedisAddr()
+		opts, err := redis.ParseURL(addr)
+		if err != nil {
+			log.Fatalf("failed to parse redis: %v", err)
+		}
+		rdb = redis.NewClient(opts)
+	})
 	return rdb
 }
 
 func getRedisAddr() string {
 	addr := os.Getenv("REDIS_URL")
 	if addr == "" {
-		addr = "localhost:6379"
+		addr = "redis://localhost:6379"
 	}
 	return addr
 }

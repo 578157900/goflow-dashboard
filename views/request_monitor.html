@@ -30,7 +30,7 @@
 		    <li class="list-group-item" id="exec-status"><b>Status:</b> {{ .Traces.Status }} </li>
         </ul>
         <div class="card-body">
-           <a id="stop-request" href="#" onclick="return stopRequest('{{ .Requests.Flow }}', '{{ .Traces.RequestID }}');"
+           <!-- <a id="stop-request" href="#" onclick="return stopRequest('{{ .Requests.Flow }}', '{{ .Traces.RequestID }}');"
                class="card-link btn btn-danger" data-toggle="tooltip" title="Click to stop the request">
                <i class="fa fa-stop"></i>
                Stop
@@ -44,12 +44,17 @@
                class="card-link btn btn-success" data-toggle="tooltip" title="Click to resume the request">
                <i class="fa fa-play"></i>
                Resume
+           </a> -->
+           <a id="retry-request" href="#" onclick="return retryRequest('{{ .Requests.Flow }}', '{{ .Traces.RequestID }}');"
+                class="card-link btn btn-success" data-toggle="tooltip" title="Click to retry the request">
+                <i class="fa fa-play"></i>
+                Retry
            </a>
-           <a id="download-trace-logs" href="#"
+           <!-- <a id="download-trace-logs" href="#"
               class="card-link btn btn-secondary" data-toggle="tooltip" title="Click to download raw trace logs">
                <i class="fa fa-download"></i>
 		       Logs
-		   </a>
+		   </a> -->
         </div>
         {{ end }}
         {{ if not .Requests.TracingEnabled }}

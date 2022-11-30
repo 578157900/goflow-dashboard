@@ -220,6 +220,40 @@ function resumeRequest(flowName, request) {
     xmlHttp.send(data);
 };
 
+// retry the request
+function retryRequest(flowName, request) {
+    let url = getServer();
+    url = url.concat("/api/flow/request/retry");
+
+    let reqData = {};
+    reqData["function"] = flowName;
+    reqData["request-id"] = request;
+
+    let data = JSON.stringify(reqData);
+    let contentType = "application/json";
+
+    let html = document.getElementById("exec-status").innerHTML;
+    if (!html.includes("Interrupt")) {
+        triggerAlert("Can't resume request: <b>" + request +"</b>, must be <b>Interrupt</b>", 'info');
+        return;
+    }
+
+    let xmlHttp = new XMLHttpRequest();
+    xmlHttp.onreadystatechange = function () {
+        if (this.readyState == 4 && this.status != 200) {
+            triggerAlert("Failed to retry the request: <b>" + request + "</b>", 'danger');
+            return;
+        }
+        if (this.readyState == 4 && this.status == 200) {
+            triggerAlert("Request: <b>" + request + "</b> has been retryed", 'success');
+            return;
+        }
+    };
+
+    xmlHttp.open("POST", url, true);
+    xmlHttp.setRequestHeader("Content-Type", contentType);
+    xmlHttp.send(data);
+};
 
 /*
 // delete the flow function

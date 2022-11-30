@@ -34,6 +34,22 @@ type SpanOps struct {
 	TraceID       string `json:"traceID"`
 	SpanID        string `json:"spanID"`
 	OperationName string `json:"operationName"`
+	Tags          []Tag  `json:"tags"`
+}
+
+func (span *SpanOps) FindRequestID() string {
+	for _, tag := range span.Tags {
+		if tag.Key == "request" && tag.Type == "string" {
+			return tag.Value.(string)
+		}
+	}
+	return ""
+}
+
+type Tag struct {
+	Key   string      `json:"key"`
+	Type  string      `json:"type"`
+	Value interface{} `json:"value"`
 }
 
 type RequestItem struct {
@@ -65,7 +81,7 @@ var (
 )
 
 func ListRequests(function string) (map[string]string, error) {
-	resp, err := http.Get(getTraceUrl() + "api/traces?service=" + function)
+	resp, err := http.Get(getTraceUrl() + "api/traces?service=goflow&operation=" + function)
 	if err != nil {
 		return nil, fmt.Errorf("failed to request trace service, error %v ", err)
 	}
@@ -82,7 +98,6 @@ func ListRequests(function string) (map[string]string, error) {
 	if len(bodyBytes) == 0 {
 		return nil, fmt.Errorf("failed to get request traces, empty result")
 	}
-
 	requests := &Requests{}
 	err = json.Unmarshal(bodyBytes, requests)
 	if err != nil {
@@ -96,12 +111,13 @@ func ListRequests(function string) (map[string]string, error) {
 		}
 		for _, span := range request.Spans {
 			if span.TraceID == request.TraceID && span.TraceID == span.SpanID {
-				requestMap[span.OperationName] = request.TraceID
+				if requestID := span.FindRequestID(); requestID != "" {
+					requestMap[requestID] = request.TraceID
+				}
 				break
 			}
 		}
 	}
-
 	return requestMap, nil
 }
 

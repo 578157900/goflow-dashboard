@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/s8sg/goflow/eventhandler"
 )
 
 // HtmlObject object to render web page
@@ -452,6 +454,49 @@ func pauseRequestHandler(w http.ResponseWriter, r *http.Request) {
 			requestID, flowName, err)
 		http.Error(w, fmt.Sprintf("failed to pause request %s for %s, error: %v",
 			requestID, flowName, err), http.StatusInternalServerError)
+	}
+
+	w.Write([]byte(""))
+	return
+}
+
+func retryRequestHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Body == nil {
+		http.Error(w, "invalid request, no content", 500)
+		return
+	}
+
+	var msg Message
+	err := json.NewDecoder(r.Body).Decode(&msg)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	flowName := msg.FlowName
+	requestID := msg.RequestID
+
+	redisClient := getRDB()
+	wf, _, err := eventhandler.GetWorkflow(redisClient, requestID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to retry request %s for %s, error: %v",
+			requestID, flowName, err), http.StatusInternalServerError)
+		return
+	}
+
+	body, err := json.Marshal(wf.Payload.Payload)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to retry request %s for %s, error: %v",
+			requestID, flowName, err), http.StatusInternalServerError)
+		return
+	}
+
+	cmd := redisClient.RPush(fmt.Sprintf("goflow:queue:%s", wf.Payload.Queue), string(body))
+	_, err = cmd.Result()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to retry request %s for %s, error: %v",
+			requestID, flowName, err), http.StatusInternalServerError)
+		return
 	}
 
 	w.Write([]byte(""))

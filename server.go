@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
 	pageGen "html/template"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 const (
@@ -80,6 +81,7 @@ func main() {
 	r.HandleFunc("/api/flow/request/pause", pauseRequestHandler)
 	r.HandleFunc("/api/flow/request/resume", resumeRequestHandler)
 	r.HandleFunc("/api/flow/request/stop", stopRequestHandler)
+	r.HandleFunc("/api/flow/request/retry", retryRequestHandler)
 
 	// Static content
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./assets/static/"))))
