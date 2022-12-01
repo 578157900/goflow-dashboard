@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/s8sg/goflow/eventhandler"
 )
@@ -28,10 +29,11 @@ type HtmlObject struct {
 
 // Message API request query
 type Message struct {
-	FlowName  string `json:"function"`
-	RequestID string `json:"request-id"`
-	TraceID   string `json:"trace-id"`
-	Data      string `json:"data"`
+	FlowName    string `json:"function"`
+	RequestID   string `json:"request-id"`
+	TraceID     string `json:"trace-id"`
+	Data        string `json:"data"`
+	CallbackURL string `json:"callbackUrl"`
 }
 
 // dashboardPageHandler handle dashboard view
@@ -153,14 +155,16 @@ func flowRequestsPageHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		requestState, err := getRequestState(flowName, request)
+		requestState, newFlowName, err := getRequestState(flowName, request)
 		if err != nil {
 			log.Printf("failed to get request state for %s, request %s, error: %v",
 				flowName, request, err)
 			requestState = "UNKNOWN"
 		}
 		requestsList[request].Status = requestState
-
+		requestsList[request].FlowName = newFlowName
+		requestsList[request].StartTimeFormat =
+			time.Unix(int64(requestsList[request].StartTime/1000000), 0).Format("2006-01-02 15:04:05")
 		tracingEnabled = true
 	}
 
@@ -220,29 +224,26 @@ func flowRequestMonitorPageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	requestsList := make(map[string]*RequestTrace)
-
-	for request, traceId := range requests {
-		requestsList[request], err = listRequestTraces(request, traceId)
-		if err != nil {
-			log.Printf("failed to get request traces for request %s, traceId %s, error: %v",
-				request, traceId, err)
-			requestsList[request] = &RequestTrace{
-				TraceId: traceId,
-			}
-		}
-
-		requestState, err := getRequestState(flowName, request)
-		if err != nil {
-			log.Printf("failed to get request state for %s, request %s, error: %v",
-				flowName, request, err)
-			requestState = "UNKNOWN"
-		}
-		requestsList[request].Status = requestState
-
+	for request := range requests {
+		requestsList[request] = nil
 		tracingEnabled = true
 		if currentRequestID == "" {
 			currentRequestID = request
 		}
+	}
+
+	requestTracer, err := listRequestTraces(currentRequestID, "")
+	if err != nil {
+		log.Printf("failed to get request traces for request %s,  error: %v", currentRequestID, err)
+	} else {
+		requestState, newFlowName, err := getRequestState(flowName, currentRequestID)
+		if err != nil {
+			log.Printf("failed to get request state for %s, request %s, error: %v",
+				flowName, currentRequestID, err)
+			requestState = "UNKNOWN"
+		}
+		requestTracer.Status = requestState
+		requestTracer.FlowName = newFlowName
 	}
 
 	flowRequests := &FlowRequests{
@@ -275,7 +276,7 @@ func flowRequestMonitorPageHandler(w http.ResponseWriter, r *http.Request) {
 
 		Requests: flowRequests,
 
-		Traces: requestsList[currentRequestID],
+		Traces: requestTracer,
 
 		InnerHtml: "request-monitor",
 	}
@@ -389,7 +390,7 @@ func requestTracesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state, err := getRequestState(flowName, requestId)
+	state, _, err := getRequestState(flowName, requestId)
 	if err != nil {
 		log.Printf("failed to get request state for %s, request %s, error: %v",
 			flowName, requestId, err)
@@ -418,8 +419,7 @@ func executeRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	flowName := msg.FlowName
 	data := msg.Data
-
-	requestId, err := executeFlow(flowName, []byte(data))
+	requestId, err := executeFlow(flowName, []byte(data), msg.CallbackURL)
 	if err != nil {
 		log.Printf("failed to execute %s, error: %v",
 			flowName, err)

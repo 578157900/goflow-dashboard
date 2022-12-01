@@ -11,6 +11,7 @@
                 <thead>
                 <tr>
                     <th>Request ID</th>
+                    <th>Flow Name</th>
                     <th>Trace ID</th>
                     <th>State</th>
                     <th>Start Time</th>
@@ -22,12 +23,13 @@
                 <tbody>
                     <tr>
                         <td> <strong>{{ $key }}</strong> </td>
+                        <td> {{ $value.FlowName }} </td>
                         <td> {{ $value.TraceId }} </td>
                         <td> {{ $value.Status }} </td>
-                        <td> {{ $value.StartTime }} </td>
+                        <td> {{ $value.StartTimeFormat }} </td>
                         <td> {{ $value.Duration }} </td>
                         <td>
-                            <a href="/flow/request/monitor?flow-name={{ $flowName }}&request={{ $key }}" class="card-link btn btn-info" data-toggle="tooltip" title="Click to view monitoring information">
+                            <a href="/flow/request/monitor?flow-name={{ $value.FlowName }}&request={{ $key }}" class="card-link btn btn-info" data-toggle="tooltip" title="Click to view monitoring information">
                                 <i class="fa fa-search-plus"></i>
                                 Monitor
                             </a>

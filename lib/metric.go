@@ -121,6 +121,83 @@ func ListRequests(function string) (map[string]string, error) {
 	return requestMap, nil
 }
 
+func GetTraceByTag(flowName string, tag map[string]string) (*RequestTrace, error) {
+	tagData, _ := json.Marshal(tag)
+	resp, err := http.Get(getTraceUrl() + fmt.Sprintf("api/traces?service=goflow&tags=%s", string(tagData)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to request trace service, error %v ", err)
+	}
+	defer resp.Body.Close()
+	if resp.Body == nil {
+		return nil, fmt.Errorf("failed to request trace service, status code %d", resp.StatusCode)
+	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read trace result, read error %v", err)
+	}
+
+	if len(bodyBytes) == 0 {
+		return nil, fmt.Errorf("failed to get request traces, empty result")
+	}
+
+	traces := &Traces{}
+	err = json.Unmarshal(bodyBytes, traces)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal requests lists, error %v", err)
+	}
+
+	if traces.Data == nil || len(traces.Data) == 0 {
+		return nil, fmt.Errorf("failed to get request traces, empty data")
+	}
+
+	requestTrace := traces.Data[0]
+	requestTraces := &RequestTrace{}
+	requestTraces.NodeTraces = make(map[string]*NodeTrace)
+
+	var lastSpanEnd int
+
+	for _, span := range requestTrace.Spans {
+		if span.TraceID == span.SpanID {
+			// Set RequestID, StartTime and lastestSpan start time
+			requestTraces.RequestID = span.OperationName
+			requestTraces.StartTime = span.StartTime
+			requestTraces.Duration = span.Duration
+			lastSpanEnd = span.StartTime
+		} else {
+			spanEndTime := span.StartTime + span.Duration
+			if spanEndTime > lastSpanEnd {
+				lastSpanEnd = spanEndTime
+			}
+
+			node, found := requestTraces.NodeTraces[span.OperationName]
+			if found {
+				nodeStartTime := node.StartTime
+				nodeDuration := node.Duration
+				nodeEndTime := nodeStartTime + nodeDuration
+				if span.StartTime < nodeStartTime {
+					nodeStartTime = span.StartTime
+				}
+				if spanEndTime > nodeEndTime {
+					nodeDuration = spanEndTime - nodeStartTime
+				}
+				node.StartTime = nodeStartTime
+				node.Duration = nodeDuration
+			} else {
+				node = &NodeTrace{}
+				node.StartTime = span.StartTime
+				node.Duration = span.Duration
+			}
+			requestTraces.NodeTraces[span.OperationName] = node
+		}
+	}
+	if lastSpanEnd > requestTraces.StartTime {
+		requestTraces.Duration = lastSpanEnd - requestTraces.StartTime
+	}
+
+	return requestTraces, nil
+}
+
 func ListTraces(request string) (*RequestTrace, error) {
 	resp, err := http.Get(getTraceUrl() + "api/traces/" + request)
 	if err != nil {

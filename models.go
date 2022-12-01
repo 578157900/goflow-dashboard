@@ -39,10 +39,12 @@ type NodeTrace struct {
 
 // RequestTrace object to retrieve and response traces details
 type RequestTrace struct {
-	RequestID  string                `json:"request-id"`
-	TraceId    string                `json:"trace-id"`
-	NodeTraces map[string]*NodeTrace `json:"traces"`
-	StartTime  int                   `json:"start-time"`
-	Duration   int                   `json:"duration"`
-	Status     string                `json:"status"`
+	RequestID       string                `json:"request-id"`
+	FlowName        string                `json:"flow-name"`
+	TraceId         string                `json:"trace-id"`
+	NodeTraces      map[string]*NodeTrace `json:"traces"`
+	StartTime       int                   `json:"start-time"`
+	StartTimeFormat string                `json:"start-time-format"`
+	Duration        int                   `json:"duration"`
+	Status          string                `json:"status"`
 }

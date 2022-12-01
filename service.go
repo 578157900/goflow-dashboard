@@ -84,7 +84,17 @@ func buildFlowDesc(functions []*Flow, flowName string) (*FlowDesc, error) {
 
 // listRequestTraces get list of traces for a request traceID
 func listRequestTraces(requestId string, requestTraceId string) (*RequestTrace, error) {
-	requestTraceResponse, err := lib.ListTraces(requestTraceId)
+	var (
+		requestTraceResponse *lib.RequestTrace
+		err                  error
+	)
+	if requestTraceId != "" {
+		requestTraceResponse, err = lib.ListTraces(requestTraceId)
+	} else {
+		requestTraceResponse, err = lib.GetTraceByTag(requestId, map[string]string{
+			"request": requestId,
+		})
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -107,17 +117,17 @@ func listRequestTraces(requestId string, requestTraceId string) (*RequestTrace, 
 }
 
 // getRequestState request the flow for the request status
-func getRequestState(flow, requestId string) (string, error) {
+func getRequestState(flow, requestId string) (string, string, error) {
 	rdb = getRDB()
 	wf, _, err := eventhandler.GetWorkflow(rdb, requestId)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return wf.State, nil
+	return wf.State, wf.FlowName, nil
 }
 
 // executeFlow execute a flow
-func executeFlow(flow string, data []byte) (string, error) {
+func executeFlow(flow string, data []byte, callbackURL string) (string, error) {
 	fs := &goflow.FlowService{
 		RedisURL: getRedisAddr(),
 	}
@@ -125,8 +135,11 @@ func executeFlow(flow string, data []byte) (string, error) {
 	request := &goflow.Request{
 		Body:      data,
 		RequestId: requestId,
+		Header:    map[string][]string{},
 	}
-
+	if callbackURL != "" {
+		request.Header["X-Faas-Flow-Callback-Url"] = []string{callbackURL}
+	}
 	err := fs.Execute(flow, request)
 	if err != nil {
 		return "", err

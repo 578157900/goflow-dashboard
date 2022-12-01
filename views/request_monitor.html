@@ -25,6 +25,7 @@
             </div>
         </div>
         <ul class="list-group list-group-flush">
+            <li class="list-group-item" id="flow-name"><b>FlowName:</b> {{ .Traces.FlowName }} </li>
             <li class="list-group-item" id="start-time"><b>Start Time:</b> {{ .Traces.StartTime }}</li>
             <li class="list-group-item" id="exec-duration"><b>Duration:</b> {{ .Traces.Duration }}</li>
 		    <li class="list-group-item" id="exec-status"><b>Status:</b> {{ .Traces.Status }} </li>
@@ -45,7 +46,7 @@
                <i class="fa fa-play"></i>
                Resume
            </a> -->
-           <a id="retry-request" href="#" onclick="return retryRequest('{{ .Requests.Flow }}', '{{ .Traces.RequestID }}');"
+           <a id="retry-request" href="#" onclick="return retryRequest('{{ .Traces.FlowName }}', '{{ .Traces.RequestID }}');"
                 class="card-link btn btn-success" data-toggle="tooltip" title="Click to retry the request">
                 <i class="fa fa-play"></i>
                 Retry

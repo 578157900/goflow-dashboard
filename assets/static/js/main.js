@@ -91,6 +91,7 @@ function executeFlow(flowName) {
     let reqData = {};
     reqData["function"] = flowName;
     reqData["data"] = document.getElementById("request.body").value;
+    reqData["callbackUrl"] = document.getElementById("request.callback").value;
     let data = JSON.stringify(reqData);
     let contentType = document.querySelector('input[name="request.content_type"]:checked').value;
 
@@ -296,12 +297,15 @@ function formatDuration(micros) {
 // format Time in hour:min:sec
 function formatTime(unix_timestamp) {
     let date = new Date(unix_timestamp/1000);
+    let month = date.getMonth();
+    let day = date.getDay();
+    let year = date.getFullYear();
     let hours = date.getHours();
     let minutes = "0" + date.getMinutes();
     let seconds = "0" + date.getSeconds();
 
     // Will display time in 10:30:23 format
-    let formattedTime = hours + ':' + minutes.substr(-2) + ':' + seconds.substr(-2);
+    let formattedTime = year + '-' + month + '-' + day + ' ' + hours + ':' + minutes.substr(-2) + ':' + seconds.substr(-2);
     return formattedTime
 };
 
