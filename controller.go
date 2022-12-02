@@ -146,15 +146,10 @@ func flowRequestsPageHandler(w http.ResponseWriter, r *http.Request) {
 	requestsList := make(map[string]*RequestTrace)
 
 	for request, traceId := range requests {
-		requestsList[request], err = listRequestTraces(request, traceId)
-		if err != nil {
-			log.Printf("failed to get request traces for request %s, traceId %s, error: %v",
-				request, traceId, err)
-			requestsList[request] = &RequestTrace{
-				TraceId: traceId,
-			}
+		requestsList[request] = &RequestTrace{
+			TraceId:   traceId,
+			RequestID: request,
 		}
-
 		requestState, newFlowName, err := getRequestState(flowName, request)
 		if err != nil {
 			log.Printf("failed to get request state for %s, request %s, error: %v",

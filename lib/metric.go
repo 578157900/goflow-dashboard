@@ -63,17 +63,18 @@ type Requests struct {
 
 // traces of each nodes in a dag
 type NodeTrace struct {
-	StartTime int `json:"start-time"`
-	Duration  int `json:"duration"`
+	StartTime int    `json:"start-time"`
+	Duration  int    `json:"duration"`
+	Node      string `json:"node"`
 	// Other can be added based on the needs
 }
 
 // RequestTrace object to response traces details
 type RequestTrace struct {
-	RequestID  string                `json:"request-id"`
-	NodeTraces map[string]*NodeTrace `json:"traces"`
-	StartTime  int                   `json:"start-time"`
-	Duration   int                   `json:"duration"`
+	RequestID  string       `json:"request-id"`
+	NodeTraces []*NodeTrace `json:"traces"`
+	StartTime  int          `json:"start-time"`
+	Duration   int          `json:"duration"`
 }
 
 var (
@@ -153,7 +154,7 @@ func GetTraceByTag(flowName string, tag map[string]string) (*RequestTrace, error
 
 	requestTrace := traces.Data[0]
 	requestTraces := &RequestTrace{}
-	requestTraces.NodeTraces = make(map[string]*NodeTrace)
+	requestTraces.NodeTraces = []*NodeTrace{}
 
 	var lastSpanEnd int
 
@@ -169,106 +170,11 @@ func GetTraceByTag(flowName string, tag map[string]string) (*RequestTrace, error
 			if spanEndTime > lastSpanEnd {
 				lastSpanEnd = spanEndTime
 			}
-
-			node, found := requestTraces.NodeTraces[span.OperationName]
-			if found {
-				nodeStartTime := node.StartTime
-				nodeDuration := node.Duration
-				nodeEndTime := nodeStartTime + nodeDuration
-				if span.StartTime < nodeStartTime {
-					nodeStartTime = span.StartTime
-				}
-				if spanEndTime > nodeEndTime {
-					nodeDuration = spanEndTime - nodeStartTime
-				}
-				node.StartTime = nodeStartTime
-				node.Duration = nodeDuration
-			} else {
-				node = &NodeTrace{}
-				node.StartTime = span.StartTime
-				node.Duration = span.Duration
-			}
-			requestTraces.NodeTraces[span.OperationName] = node
-		}
-	}
-	if lastSpanEnd > requestTraces.StartTime {
-		requestTraces.Duration = lastSpanEnd - requestTraces.StartTime
-	}
-
-	return requestTraces, nil
-}
-
-func ListTraces(request string) (*RequestTrace, error) {
-	resp, err := http.Get(getTraceUrl() + "api/traces/" + request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to request trace service, error %v ", err)
-	}
-	defer resp.Body.Close()
-	if resp.Body == nil {
-		return nil, fmt.Errorf("failed to request trace service, status code %d", resp.StatusCode)
-	}
-
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read trace result, read error %v", err)
-	}
-
-	if len(bodyBytes) == 0 {
-		return nil, fmt.Errorf("failed to get request traces, empty result")
-	}
-
-	traces := &Traces{}
-	err = json.Unmarshal(bodyBytes, traces)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal requests lists, error %v", err)
-	}
-
-	if traces.Data == nil || len(traces.Data) == 0 {
-		return nil, fmt.Errorf("failed to get request traces, empty data")
-	}
-
-	requestTrace := traces.Data[0]
-	if requestTrace.TraceID != request {
-		return nil, fmt.Errorf("invalid request trace %s", requestTrace.TraceID)
-	}
-
-	requestTraces := &RequestTrace{}
-	requestTraces.NodeTraces = make(map[string]*NodeTrace)
-
-	var lastSpanEnd int
-
-	for _, span := range requestTrace.Spans {
-		if span.TraceID == request && span.TraceID == span.SpanID {
-			// Set RequestID, StartTime and lastestSpan start time
-			requestTraces.RequestID = span.OperationName
-			requestTraces.StartTime = span.StartTime
-			requestTraces.Duration = span.Duration
-			lastSpanEnd = span.StartTime
-		} else {
-			spanEndTime := span.StartTime + span.Duration
-			if spanEndTime > lastSpanEnd {
-				lastSpanEnd = spanEndTime
-			}
-
-			node, found := requestTraces.NodeTraces[span.OperationName]
-			if found {
-				nodeStartTime := node.StartTime
-				nodeDuration := node.Duration
-				nodeEndTime := nodeStartTime + nodeDuration
-				if span.StartTime < nodeStartTime {
-					nodeStartTime = span.StartTime
-				}
-				if spanEndTime > nodeEndTime {
-					nodeDuration = spanEndTime - nodeStartTime
-				}
-				node.StartTime = nodeStartTime
-				node.Duration = nodeDuration
-			} else {
-				node = &NodeTrace{}
-				node.StartTime = span.StartTime
-				node.Duration = span.Duration
-			}
-			requestTraces.NodeTraces[span.OperationName] = node
+			requestTraces.NodeTraces = append(requestTraces.NodeTraces, &NodeTrace{
+				span.StartTime,
+				span.Duration,
+				span.OperationName + "-" + span.SpanID,
+			})
 		}
 	}
 	if lastSpanEnd > requestTraces.StartTime {

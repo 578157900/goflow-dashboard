@@ -331,8 +331,8 @@ function drawBarChart(jsonObject) {
     let requestdata = [id, (rstime/normalizer), ((rstime+rduration)/normalizer)];
     rows.push(requestdata);
 
-    for (let node in traces) {
-        let value = traces[node];
+    for (let value of traces) {
+        let node = value["node"];
         let nstime = value["start-time"];
         let nduration = value["duration"];
         rows.push([node, nstime/normalizer, ((nstime+nduration)/normalizer)]);

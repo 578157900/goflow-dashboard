@@ -84,17 +84,9 @@ func buildFlowDesc(functions []*Flow, flowName string) (*FlowDesc, error) {
 
 // listRequestTraces get list of traces for a request traceID
 func listRequestTraces(requestId string, requestTraceId string) (*RequestTrace, error) {
-	var (
-		requestTraceResponse *lib.RequestTrace
-		err                  error
-	)
-	if requestTraceId != "" {
-		requestTraceResponse, err = lib.ListTraces(requestTraceId)
-	} else {
-		requestTraceResponse, err = lib.GetTraceByTag(requestId, map[string]string{
-			"request": requestId,
-		})
-	}
+	requestTraceResponse, err := lib.GetTraceByTag(requestId, map[string]string{
+		"request": requestId,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -102,17 +94,16 @@ func listRequestTraces(requestId string, requestTraceId string) (*RequestTrace, 
 		RequestID:  requestId,
 		TraceId:    requestTraceId,
 		StartTime:  requestTraceResponse.StartTime,
-		NodeTraces: make(map[string]*NodeTrace, 0),
+		NodeTraces: make([]*NodeTrace, len(requestTraceResponse.NodeTraces)),
 		Duration:   requestTraceResponse.Duration,
 	}
 	for id, nodeTrace := range requestTraceResponse.NodeTraces {
-		nodeTraceObj := &NodeTrace{
+		requestTrace.NodeTraces[id] = &NodeTrace{
+			Node:      nodeTrace.Node,
 			StartTime: nodeTrace.StartTime,
 			Duration:  nodeTrace.Duration,
 		}
-		requestTrace.NodeTraces[id] = nodeTraceObj
 	}
-
 	return requestTrace, nil
 }
 
